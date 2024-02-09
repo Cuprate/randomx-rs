@@ -50,10 +50,16 @@ fn main() {
     // println!("host: {}", host);
     let target = env::var("TARGET").unwrap();
     // println!("target: {}", target);
-    if host.contains("windows") && target.contains("windows-msvc") {
+    if host.contains("windows") {
+        let generator = if target.contains("windows-msvc") {
+            "Visual Studio 16 2019"
+        } else {
+            "Ninja"
+        };
+
         let c = Command::new("cmake")
             .arg("-G")
-            .arg("Visual Studio 16 2019")
+            .arg(generator)
             .arg(repo_dir.to_str().unwrap())
             .output()
             .expect("failed to execute CMake");
@@ -205,7 +211,7 @@ fn main() {
 
     env::set_current_dir(Path::new(&project_dir)).unwrap(); // change path back to main project
 
-    if target.contains("windows") {
+    if target.contains("windows-msvc") {
         let include = &build_dir.join("Release");
         println!("cargo:rustc-link-search=native={}", &include.to_str().unwrap());
         println!("cargo:rustc-link-lib=static=randomx");
@@ -216,9 +222,9 @@ fn main() {
 
     if target.contains("apple") || target.contains("android") || target.contains("freebsd") {
         println!("cargo:rustc-link-lib=dylib=c++");
-    } else if target.contains("linux") {
+    } else if target.contains("linux") || target.contains("windows-gnu") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
-    } else if target.contains("windows") {
+    } else if target.contains("windows-msvc") {
         // println!("cargo:rustc-link-lib=dylib=c++");
     } else {
         unimplemented!();
