@@ -222,6 +222,23 @@ fn main() {
 
     if target.contains("apple") || target.contains("android") || target.contains("freebsd") {
         println!("cargo:rustc-link-lib=dylib=c++");
+    } else if target.contains("musl") {
+        if !env::var("CARGO_ENCODED_RUSTFLAGS").unwrap().contains("-crt-static") { //only static link if doing a static build
+            println!("cargo:rustc-link-search={}", "/usr/lib/x86_64-linux-gnu");
+            println!("cargo:rustc-link-search={}", "/usr/local/lib/x86_64-linux-gnu");
+            println!("cargo:rustc-link-search={}", "/usr/local/lib64");
+            println!("cargo:rustc-link-search={}", "/usr/local/lib");
+            println!("cargo:rustc-link-search={}", "/usr/lib64/");
+            println!("cargo:rustc-link-search={}", "/usr/lib/");
+            // trying bunch of commonly seen path as theres no proper way to get distro ldpath, and check if LD_LIBRARY_PATH is defined
+            match env::var("LD_LIBRARY_PATH") {
+                Ok(val) => println!("cargo:rustc-link-search={}", val),
+                Err(_) => (),
+            }
+            println!("cargo:rustc-link-lib=static=stdc++");
+        } else {
+            println!("cargo:rustc-link-lib=dylib=stdc++");
+        }
     } else if target.contains("linux") || target.contains("windows-gnu") {
         println!("cargo:rustc-link-lib=dylib=stdc++");
     } else if target.contains("windows-msvc") {
