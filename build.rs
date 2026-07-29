@@ -20,7 +20,7 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use std::env;
+use std::{env, path::PathBuf, process::Command};
 
 use cmake::Config;
 
@@ -34,14 +34,55 @@ fn main() {
     println!("cargo:rustc-link-search=native={}/lib", randomx_path.display());
     println!("cargo:rustc-link-lib=static=randomx");
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or("linux".to_string());
-    let dylib_name = match target_os.as_str() {
-        "freebsd" | "macos" | "ios" => "c++", // FreeBSD, macOS and iOS use "c++"
-        "windows" => "msvcrt",                // Use MSVC runtime on Windows
-        _ => "stdc++",                        // Default for other systems (Linux, etc.)
-    };
-    println!("cargo:rustc-link-lib=dylib={}", dylib_name);
+    let crt_kind = if links_static_crt() { "static" } else { "dylib" };
 
-    if cfg!(target_os = "windows") {
+    let (link_kind, lib_name) = match target_os.as_str() {
+        "macos" | "ios" => ("dylib", "c++"), // Apple targets reject static linking
+        "windows" => ("dylib", "msvcrt"),    // Use MSVC runtime on Windows
+        "freebsd" => (crt_kind, "c++"),      // FreeBSD uses "c++"
+        _ => (crt_kind, "stdc++"),           // Default for other systems (Linux, etc.)
+    };
+
+    if link_kind == "static" {
+        if let Some(dir) = cpp_lib_dir(lib_name) {
+            println!("cargo:rustc-link-search=native={dir}");
+        }
+    }
+    println!("cargo:rustc-link-lib={link_kind}={lib_name}");
+
+    if target_os == "windows" {
         println!("cargo:rustc-link-lib=advapi32");
     }
+}
+
+/// `true` when the target links a static C runtime.
+fn links_static_crt() -> bool {
+    let mut cmd = Command::new(env::var("RUSTC").unwrap_or_else(|_| "rustc".into()));
+    cmd.args(["--print", "cfg", "--target"])
+        .arg(env::var("TARGET").unwrap_or_default());
+    if let Ok(flags) = env::var("CARGO_ENCODED_RUSTFLAGS") {
+        cmd.args(flags.split('\x1f').filter(|arg| !arg.is_empty()));
+    }
+    match cmd.output() {
+        Ok(out) => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .any(|line| line == r#"target_feature="crt-static""#),
+        Err(_) => false,
+    }
+}
+
+/// Ask the C++ compiler where its runtime is.
+fn cpp_lib_dir(lib: &str) -> Option<String> {
+    let compiler = cc::Build::new().cpp(true).try_get_compiler().ok()?;
+    let out = Command::new(compiler.path())
+        .args(compiler.args())
+        .arg(format!("-print-file-name=lib{lib}.a"))
+        .output()
+        .ok()?;
+    // A bare filename comes back when the library cannot be found.
+    let path = PathBuf::from(String::from_utf8(out.stdout).ok()?.trim());
+    if !path.is_absolute() {
+        return None;
+    }
+    Some(path.parent()?.to_str()?.to_owned())
 }
