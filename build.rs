@@ -39,7 +39,7 @@ fn main() {
     let (link_kind, lib_name) = match target_os.as_str() {
         "macos" | "ios" => ("dylib", "c++"), // Apple targets reject static linking
         "windows" => ("dylib", "msvcrt"),    // Use MSVC runtime on Windows
-        "freebsd" => (crt_kind, "c++"),      // FreeBSD uses "c++"
+        "freebsd" | "openbsd" => (crt_kind, "c++"),      // FreeBSD and OpenBSD use "c++"
         _ => (crt_kind, "stdc++"),           // Default for other systems (Linux, etc.)
     };
 
