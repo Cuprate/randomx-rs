@@ -37,10 +37,10 @@ fn main() {
     let crt_kind = if links_static_crt() { "static" } else { "dylib" };
 
     let (link_kind, lib_name) = match target_os.as_str() {
-        "macos" | "ios" => ("dylib", "c++"), // Apple targets reject static linking
-        "windows" => ("dylib", "msvcrt"),    // Use MSVC runtime on Windows
-        "freebsd" | "openbsd" => (crt_kind, "c++"),      // FreeBSD and OpenBSD use "c++"
-        _ => (crt_kind, "stdc++"),           // Default for other systems (Linux, etc.)
+        "macos" | "ios" => ("dylib", "c++"),        // Apple targets reject static linking
+        "windows" => ("dylib", "msvcrt"),           // Use MSVC runtime on Windows
+        "freebsd" | "openbsd" => (crt_kind, "c++"), // FreeBSD and OpenBSD use "c++"
+        _ => (crt_kind, "stdc++"),                  // Default for other systems (Linux, etc.)
     };
 
     if link_kind == "static" {

@@ -404,8 +404,8 @@ impl RandomXVM {
         } else {
             let size_input = input.len();
             let input_ptr = input.as_ptr() as *mut c_void;
-            let arr = [0; RANDOMX_HASH_SIZE as usize];
-            let output_ptr = arr.as_ptr() as *mut c_void;
+            let mut arr = [0; RANDOMX_HASH_SIZE as usize];
+            let output_ptr = arr.as_mut_ptr().cast();
             unsafe {
                 randomx_calculate_hash(self.vm, input_ptr, size_input, output_ptr);
             }
@@ -439,7 +439,7 @@ impl RandomXVM {
 
         // For multiple inputs
         let mut output_ptr: *mut c_void = ptr::null_mut();
-        let arr = [0; RANDOMX_HASH_SIZE as usize];
+        let mut arr = [0; RANDOMX_HASH_SIZE as usize];
 
         // Not len() as last iteration assigns final hash
         let iterations = input.len() + 1;
@@ -462,7 +462,7 @@ impl RandomXVM {
                 };
                 let size_input = input[i].len();
                 let input_ptr = input[i].as_ptr() as *mut c_void;
-                output_ptr = arr.as_ptr() as *mut c_void;
+                output_ptr = arr.as_mut_ptr().cast();
                 if i == 0 {
                     // For first iteration
                     unsafe {
